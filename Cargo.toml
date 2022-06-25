@@ -7,3 +7,10 @@ publish = false
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+anyhow = "1.0.58"
+async-trait = "0.1.56"
+serde = { version = "1.0.137", features = ["derive"] }
+
+[dev-dependencies]
+pretty_assertions = "1.2.1"
+serde_json = "1.0.81"
