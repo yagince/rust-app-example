@@ -10,6 +10,7 @@ publish = false
 anyhow = "1.0.58"
 async-trait = "0.1.56"
 serde = { version = "1.0.137", features = ["derive"] }
+tokio = { version = "1.19.2", features = ["full"] }
 
 [dev-dependencies]
 pretty_assertions = "1.2.1"

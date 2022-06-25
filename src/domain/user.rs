@@ -1,7 +1,7 @@
 use serde::Deserialize;
 
 #[derive(Debug, Clone, PartialEq, Deserialize)]
-pub struct UserId(i64);
+pub struct UserId(pub i64);
 
 #[derive(Debug, Clone, PartialEq, Deserialize)]
 pub struct User {
