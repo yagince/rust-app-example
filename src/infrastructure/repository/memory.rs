@@ -1,6 +1,8 @@
+use rand::random;
+
 use crate::domain::{
     repository::user_repository::UserRepository,
-    user::{User, UserId},
+    user::{NewUser, User, UserId},
 };
 
 #[derive(Debug, Clone, PartialEq, Default)]
@@ -30,13 +32,24 @@ impl UserRepository for OnMemoryRepository {
             .collect::<Vec<_>>()
             .pop())
     }
+
+    async fn create_user(&mut self, user: &NewUser) -> anyhow::Result<User> {
+        let user = User {
+            id: UserId(random()),
+            name: user.name.clone(),
+            age: user.age,
+        };
+        self.users.push(user.clone());
+
+        Ok(user)
+    }
 }
 
 #[cfg(test)]
 mod tests {
+    use crate::domain::user::{NewUser, UserId};
+    use assert_matches::assert_matches;
     use pretty_assertions::assert_eq;
-
-    use crate::domain::user::UserId;
 
     use super::*;
 
@@ -79,6 +92,24 @@ mod tests {
         let res = repo.get_user(&users[0].id).await?;
 
         assert_eq!(res, users.first().cloned());
+
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn test_create_user() -> anyhow::Result<()> {
+        let mut repo = OnMemoryRepository::new();
+
+        let user = repo
+            .create_user(&NewUser {
+                name: "Name".into(),
+                age: 100,
+            })
+            .await?;
+
+        assert_matches!(user, User { id: UserId(id), .. } => {
+            assert!(id > 0);
+        });
 
         Ok(())
     }

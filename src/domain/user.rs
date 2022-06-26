@@ -10,6 +10,12 @@ pub struct User {
     pub age: u32,
 }
 
+#[derive(Debug, Clone, PartialEq, Deserialize)]
+pub struct NewUser {
+    pub name: String,
+    pub age: u32,
+}
+
 #[cfg(test)]
 mod tests {
     use pretty_assertions::assert_eq;
