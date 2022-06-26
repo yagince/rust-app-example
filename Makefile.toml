@@ -1,0 +1,46 @@
+[config]
+skip_core_tasks = true
+
+[tasks.test-watch]
+watch = { watch = ["src"] }
+run_task = "test"
+
+[tasks.test]
+command = "cargo"
+args = ["test", "--", "--nocapture", "-q"]
+
+[tasks.ci]
+run_task = "test"
+dependencies = ["migration-test"]
+
+[tasks.migration]
+command = "psqldef"
+args = [
+    "-U",
+    "${POSTGRES_USER}",
+    "-W",
+    "${POSTGRES_PASSWORD}",
+    "-p",
+    "${POSTGRES_PORT}",
+    "-h",
+    "${POSTGRES_HOST}",
+    "-f",
+    "schema.sql",
+    "${POSTGRES_DB}",
+]
+
+[tasks.migration-test]
+command = "psqldef"
+args = [
+    "-U",
+    "${POSTGRES_USER}",
+    "-W",
+    "${POSTGRES_PASSWORD}",
+    "-p",
+    "${POSTGRES_PORT}",
+    "-h",
+    "${POSTGRES_HOST}",
+    "-f",
+    "schema.sql",
+    "${POSTGRES_DB_TEST}",
+]
