@@ -33,10 +33,10 @@ impl UserRepository for OnMemoryRepository {
             .pop())
     }
 
-    async fn create_user(&mut self, user: &NewUser) -> anyhow::Result<User> {
+    async fn create_user(&mut self, user: NewUser) -> anyhow::Result<User> {
         let user = User {
-            id: UserId(random()),
-            name: user.name.clone(),
+            id: UserId(random::<u32>() as i64),
+            name: user.name,
             age: user.age,
         };
         self.users.push(user.clone());
@@ -101,14 +101,14 @@ mod tests {
         let mut repo = OnMemoryRepository::new();
 
         let user = repo
-            .create_user(&NewUser {
+            .create_user(NewUser {
                 name: "Name".into(),
                 age: 100,
             })
             .await?;
 
         assert_matches!(user, User { id: UserId(id), .. } => {
-            assert!(id > 0);
+            assert!(id >= 0);
         });
 
         Ok(())

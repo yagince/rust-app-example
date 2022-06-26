@@ -1,11 +1,13 @@
 use serde::Deserialize;
+use validator::Validate;
 
 #[derive(Debug, Clone, PartialEq, Deserialize)]
 pub struct UserId(pub i64);
 
-#[derive(Debug, Clone, PartialEq, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Deserialize, Validate)]
 pub struct User {
     pub id: UserId,
+    #[validate(length(min = 1))]
     pub name: String,
     pub age: u32,
 }
@@ -19,9 +21,21 @@ pub struct NewUser {
 #[cfg(test)]
 mod tests {
     use pretty_assertions::assert_eq;
+    use rstest::rstest;
     use serde_json::json;
+    use validator::ValidationErrors;
 
     use super::*;
+
+    impl Default for User {
+        fn default() -> Self {
+            Self {
+                id: UserId(0),
+                name: Default::default(),
+                age: 0,
+            }
+        }
+    }
 
     #[test]
     fn test_deserialize_from_json() -> anyhow::Result<()> {
@@ -44,5 +58,19 @@ mod tests {
         );
 
         Ok(())
+    }
+
+    #[rstest]
+    #[case("", true)]
+    #[case("a", false)]
+    fn test_validate_name(#[case] name: &str, #[case] has_error: bool) {
+        let user = User {
+            name: name.into(),
+            ..Default::default()
+        };
+
+        let res = user.validate();
+
+        assert_eq!(ValidationErrors::has_error(&res, "name"), has_error);
     }
 }
