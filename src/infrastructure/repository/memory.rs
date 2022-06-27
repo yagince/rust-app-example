@@ -26,14 +26,14 @@ impl UserRepository for OnMemoryRepository {
         Ok(self
             .users
             .iter()
-            .filter(|x| dbg!(x).id == *id)
+            .filter(|x| x.id == *id)
             .cloned()
             .take(1)
             .collect::<Vec<_>>()
             .pop())
     }
 
-    async fn create_user(&mut self, user: NewUser) -> anyhow::Result<User> {
+    async fn create_user(&self, user: NewUser) -> anyhow::Result<User> {
         let user = User {
             id: UserId(random::<u32>() as i64),
             name: user.name,
@@ -60,7 +60,7 @@ mod tests {
             name: "Name".into(),
             age: 100,
         }];
-        let repo = OnMemoryRepository {
+        let mut repo = OnMemoryRepository {
             users: users.clone(),
         };
 
@@ -85,7 +85,7 @@ mod tests {
                 age: 100,
             },
         ];
-        let repo = OnMemoryRepository {
+        let mut repo = OnMemoryRepository {
             users: users.clone(),
         };
 
