@@ -1,13 +1,16 @@
+use std::sync::Arc;
+
 use rand::random;
+use tokio::sync::Mutex;
 
 use crate::domain::{
     repository::user_repository::UserRepository,
     user::{NewUser, User, UserId},
 };
 
-#[derive(Debug, Clone, PartialEq, Default)]
+#[derive(Debug, Clone, Default)]
 pub struct OnMemoryRepository {
-    users: Vec<User>,
+    users: Arc<Mutex<Vec<User>>>,
 }
 
 impl OnMemoryRepository {
@@ -19,12 +22,14 @@ impl OnMemoryRepository {
 #[async_trait::async_trait]
 impl UserRepository for OnMemoryRepository {
     async fn get_users(&self) -> anyhow::Result<Vec<User>> {
-        Ok(self.users.clone())
+        Ok(self.users.lock().await.clone())
     }
 
     async fn get_user(&self, id: &UserId) -> anyhow::Result<Option<User>> {
         Ok(self
             .users
+            .lock()
+            .await
             .iter()
             .filter(|x| x.id == *id)
             .cloned()
@@ -39,7 +44,7 @@ impl UserRepository for OnMemoryRepository {
             name: user.name,
             age: user.age,
         };
-        self.users.push(user.clone());
+        self.users.lock().await.push(user.clone());
 
         Ok(user)
     }
@@ -61,7 +66,7 @@ mod tests {
             age: 100,
         }];
         let mut repo = OnMemoryRepository {
-            users: users.clone(),
+            users: Arc::new(Mutex::new(users.clone())),
         };
 
         let res = repo.get_users().await?;
@@ -86,7 +91,7 @@ mod tests {
             },
         ];
         let mut repo = OnMemoryRepository {
-            users: users.clone(),
+            users: Arc::new(Mutex::new(users.clone())),
         };
 
         let res = repo.get_user(&users[0].id).await?;

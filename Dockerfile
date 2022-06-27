@@ -11,6 +11,8 @@ ENV CARGO_TARGET_DIR=/tmp/target \
 RUN apt-get -y -q update \
   && apt-get install -y -q \
     libpq-dev \
+    libssl-dev \
+    pkg-config \
     curl \
   && echo "install sqldef" \
   && SQLDEF_ARCH=$(echo $TARGETPLATFORM | sed -e 's/\//_/') \

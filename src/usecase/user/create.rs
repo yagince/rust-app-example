@@ -6,15 +6,15 @@ use crate::domain::{
 };
 
 pub struct CreateUser<'a, R: UserRepository> {
-    repo: &'a mut R,
+    repo: &'a R,
 }
 
 impl<'a, R: UserRepository> CreateUser<'a, R> {
-    pub fn new(repo: &'a mut R) -> Self {
+    pub fn new(repo: &'a R) -> Self {
         Self { repo }
     }
 
-    pub async fn run(&mut self, user: NewUser) -> anyhow::Result<User> {
+    pub async fn run(&self, user: NewUser) -> anyhow::Result<User> {
         // FIXME: ここでUserにcloneしないとvalidateできないのはイマイチ
         User {
             id: UserId(0),
@@ -54,7 +54,7 @@ mod tests {
                 })
             });
 
-        let mut usecase = CreateUser::new(&mut repo);
+        let mut usecase = CreateUser::new(&repo);
         let user = usecase.run(new_user).await?;
 
         assert_matches!(user, User { id, ..} => {
@@ -82,7 +82,7 @@ mod tests {
                 })
             });
 
-        let mut usecase = CreateUser::new(&mut repo);
+        let mut usecase = CreateUser::new(&repo);
         let res = usecase.run(new_user).await;
 
         assert_matches!(res, Err(e) => {
