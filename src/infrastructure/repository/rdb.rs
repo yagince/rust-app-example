@@ -1,3 +1,5 @@
+use std::time::Duration;
+
 use sea_orm::{ConnectOptions, ConnectionTrait, Database, DatabaseConnection};
 use tokio::sync::OnceCell;
 
@@ -22,7 +24,9 @@ pub async fn get_connection() -> anyhow::Result<DatabaseConnection> {
     let mut opt = ConnectOptions::new(CONFIG.database_url());
     opt.max_connections(100)
         .min_connections(5)
-        .sqlx_logging(true);
+        .sqlx_logging(true)
+        .connect_timeout(Duration::from_secs(100))
+        .idle_timeout(Duration::from_secs(300));
 
     Ok(Database::connect(opt).await?)
 }
