@@ -1,19 +1,86 @@
+use sea_orm::{ConnectionTrait, EntityTrait};
+
 use crate::domain::{
     repository::user_repository::UserRepository,
     user::{NewUser, User, UserId},
 };
 
-use super::RdbRepository;
+use super::{
+    entity::{self, users},
+    RdbRepository,
+};
 
 #[async_trait::async_trait]
-impl UserRepository for RdbRepository {
+impl<'a, C: ConnectionTrait> UserRepository for RdbRepository<'a, C> {
     async fn get_users(&self) -> anyhow::Result<Vec<User>> {
-        Err(anyhow::anyhow!(""))
+        Ok(entity::prelude::Users::find()
+            .all(__self.conn)
+            .await?
+            .into_iter()
+            .map(Into::into)
+            .collect())
     }
     async fn get_user(&self, id: &UserId) -> anyhow::Result<Option<User>> {
         Err(anyhow::anyhow!(""))
     }
     async fn create_user(&self, user: NewUser) -> anyhow::Result<User> {
         Err(anyhow::anyhow!(""))
+    }
+}
+
+impl From<users::Model> for User {
+    fn from(x: users::Model) -> Self {
+        Self {
+            id: UserId(x.id),
+            name: x.name,
+            age: x
+                .age
+                .map(|x| x.try_into().unwrap_or_default())
+                .unwrap_or_default(),
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use assert_matches::assert_matches;
+    use pretty_assertions::assert_eq;
+    use sea_orm::{ActiveModelTrait, ConnectOptions, Database, TransactionTrait};
+
+    use crate::{config::CONFIG, infrastructure::repository::rdb::entity};
+
+    use super::*;
+
+    #[tokio::test]
+    async fn test() -> anyhow::Result<()> {
+        let mut opt = ConnectOptions::new(CONFIG.database_url());
+        opt.max_connections(100)
+            .min_connections(5)
+            .sqlx_logging(true);
+
+        let db = Database::connect(opt).await?;
+
+        let tx = db.begin().await?;
+
+        entity::users::ActiveModel {
+            name: sea_orm::ActiveValue::Set("name".into()),
+            age: sea_orm::ActiveValue::Set(Some(100)),
+            ..Default::default()
+        }
+        .save(&tx)
+        .await?;
+
+        let repo = RdbRepository::new(&tx);
+
+        let users = repo.get_users().await?;
+
+        assert_matches!(&users[..], [user] => {
+            assert_matches!(user.id, UserId(x) => {
+                assert!(x > 0);
+            });
+            assert_eq!(user.name, "name");
+            assert_eq!(user.age, 100);
+        });
+        Ok(())
     }
 }

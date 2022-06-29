@@ -22,7 +22,8 @@ RUN apt-get -y -q update \
   && rm psqldef_${SQLDEF_ARCH}.tar.gz \
   && mv psqldef /usr/local/bin \
   \
-  && cargo install cargo-watch cargo-make
+  && rustup component add rustfmt \
+  && cargo install cargo-watch cargo-make sea-orm-cli
 
 RUN cargo new --bin app
 WORKDIR /app
