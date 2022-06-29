@@ -45,20 +45,15 @@ impl From<users::Model> for User {
 mod tests {
     use assert_matches::assert_matches;
     use pretty_assertions::assert_eq;
-    use sea_orm::{ActiveModelTrait, ConnectOptions, Database, TransactionTrait};
+    use sea_orm::{ActiveModelTrait, TransactionTrait};
 
-    use crate::{config::CONFIG, infrastructure::repository::rdb::entity};
+    use crate::infrastructure::repository::rdb::{entity, get_connection, DB};
 
     use super::*;
 
     #[tokio::test]
     async fn test() -> anyhow::Result<()> {
-        let mut opt = ConnectOptions::new(CONFIG.database_url());
-        opt.max_connections(100)
-            .min_connections(5)
-            .sqlx_logging(true);
-
-        let db = Database::connect(opt).await?;
+        let db = DB.get_or_try_init(get_connection).await?;
 
         let tx = db.begin().await?;
 
