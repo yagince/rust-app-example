@@ -65,7 +65,7 @@ mod tests {
             name: "Name".into(),
             age: 100,
         }];
-        let mut repo = OnMemoryRepository {
+        let repo = OnMemoryRepository {
             users: Arc::new(Mutex::new(users.clone())),
         };
 
@@ -90,7 +90,7 @@ mod tests {
                 age: 100,
             },
         ];
-        let mut repo = OnMemoryRepository {
+        let repo = OnMemoryRepository {
             users: Arc::new(Mutex::new(users.clone())),
         };
 
@@ -103,7 +103,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_create_user() -> anyhow::Result<()> {
-        let mut repo = OnMemoryRepository::new();
+        let repo = OnMemoryRepository::new();
 
         let user = repo
             .create_user(NewUser {

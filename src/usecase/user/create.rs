@@ -54,7 +54,7 @@ mod tests {
                 })
             });
 
-        let mut usecase = CreateUser::new(&repo);
+        let usecase = CreateUser::new(&repo);
         let user = usecase.run(new_user).await?;
 
         assert_matches!(user, User { id, ..} => {
@@ -82,7 +82,7 @@ mod tests {
                 })
             });
 
-        let mut usecase = CreateUser::new(&repo);
+        let usecase = CreateUser::new(&repo);
         let res = usecase.run(new_user).await;
 
         assert_matches!(res, Err(e) => {
