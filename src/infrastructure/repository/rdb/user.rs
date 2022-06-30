@@ -67,11 +67,19 @@ mod tests {
 
     use super::*;
 
+    macro_rules! transaction {
+        () => {{
+            create_connection()
+                .await?
+                .begin()
+                .await
+                .context("begin transaction")?
+        }};
+    }
+
     #[tokio::test]
     async fn test_get_users() -> anyhow::Result<()> {
-        let db = create_connection().await?;
-
-        let tx = db.begin().await.context("begin transaction")?;
+        let tx = transaction!();
 
         entity::users::ActiveModel {
             name: sea_orm::ActiveValue::Set("name".into()),
@@ -99,9 +107,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_get_user_exists() -> anyhow::Result<()> {
-        let db = create_connection().await?;
-
-        let tx = db.begin().await.context("begin transaction")?;
+        let tx = transaction!();
 
         let mut user = entity::users::ActiveModel {
             name: sea_orm::ActiveValue::Set("name".into()),
@@ -130,9 +136,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_create_user() -> anyhow::Result<()> {
-        let db = create_connection().await?;
-
-        let tx = db.begin().await.context("begin transaction")?;
+        let tx = transaction!();
 
         let repo = RdbRepository::new(&tx);
 
@@ -155,9 +159,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_create_user_if_validation_error() -> anyhow::Result<()> {
-        let db = create_connection().await?;
-
-        let tx = db.begin().await.context("begin transaction")?;
+        let tx = transaction!();
 
         let repo = RdbRepository::new(&tx);
 
