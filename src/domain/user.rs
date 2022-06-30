@@ -12,8 +12,9 @@ pub struct User {
     pub age: u32,
 }
 
-#[derive(Debug, Clone, PartialEq, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Deserialize, Validate)]
 pub struct NewUser {
+    #[validate(length(min = 1))]
     pub name: String,
     pub age: u32,
 }

@@ -2,6 +2,7 @@ use std::sync::Arc;
 
 use rand::random;
 use tokio::sync::Mutex;
+use validator::Validate;
 
 use crate::domain::{
     repository::user_repository::UserRepository,
@@ -44,6 +45,7 @@ impl UserRepository for OnMemoryRepository {
             name: user.name,
             age: user.age,
         };
+        user.validate()?;
         self.users.lock().await.push(user.clone());
 
         Ok(user)

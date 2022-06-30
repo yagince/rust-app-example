@@ -1,4 +1,5 @@
-use sea_orm::{ConnectionTrait, EntityTrait};
+use sea_orm::{ActiveModelTrait, ConnectionTrait, EntityTrait};
+use validator::Validate;
 
 use crate::domain::{
     repository::user_repository::UserRepository,
@@ -29,7 +30,15 @@ impl<'a, C: ConnectionTrait> UserRepository for RdbRepository<'a, C> {
     }
 
     async fn create_user(&self, user: NewUser) -> anyhow::Result<User> {
-        Err(anyhow::anyhow!(""))
+        user.validate()?;
+        Ok(entity::users::ActiveModel {
+            name: sea_orm::ActiveValue::Set(user.name),
+            age: sea_orm::ActiveValue::Set(user.age.try_into().ok()),
+            ..Default::default()
+        }
+        .insert(self.conn)
+        .await?
+        .into())
     }
 }
 
@@ -52,6 +61,7 @@ mod tests {
     use assert_matches::assert_matches;
     use pretty_assertions::assert_eq;
     use sea_orm::{ActiveModelTrait, TransactionTrait};
+    use validator::ValidationErrors;
 
     use crate::infrastructure::repository::rdb::{create_connection, entity};
 
@@ -110,11 +120,59 @@ mod tests {
             .context("get_user")?;
 
         assert_matches!(user, Some(user) => {
-            assert_matches!(user.id, UserId(x) => {
-                assert!(x > 0);
-            });
+            assert_matches!(user.id, UserId(x) if x > 0);
             assert_eq!(user.name, "name");
             assert_eq!(user.age, 100);
+        });
+
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn test_create_user() -> anyhow::Result<()> {
+        let db = create_connection().await?;
+
+        let tx = db.begin().await.context("begin transaction")?;
+
+        let repo = RdbRepository::new(&tx);
+
+        let user = repo
+            .create_user(NewUser {
+                name: "name".into(),
+                age: 100,
+            })
+            .await
+            .context("create_user")?;
+
+        assert_matches!(user, User { id: UserId(id), name, age} => {
+            assert!(id > 0);
+            assert_eq!(name, "name");
+            assert_eq!(age, 100);
+        });
+
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn test_create_user_if_validation_error() -> anyhow::Result<()> {
+        let db = create_connection().await?;
+
+        let tx = db.begin().await.context("begin transaction")?;
+
+        let repo = RdbRepository::new(&tx);
+
+        let res = repo
+            .create_user(NewUser {
+                name: "".into(),
+                age: 100,
+            })
+            .await;
+
+        assert_matches!(res, Err(e) => {
+            match e.downcast::<ValidationErrors>() {
+                Ok(e) => assert!(ValidationErrors::has_error(&Err(e), "name")),
+                Err(e) => panic!("Not ValidationErrors: {:?}", e),
+            }
         });
 
         Ok(())
