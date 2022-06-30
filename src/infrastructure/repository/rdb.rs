@@ -1,7 +1,6 @@
 use std::time::Duration;
 
 use sea_orm::{ConnectOptions, ConnectionTrait, Database, DatabaseConnection};
-use tokio::sync::OnceCell;
 
 use crate::config::CONFIG;
 
@@ -18,9 +17,7 @@ impl<'a, C: ConnectionTrait> RdbRepository<'a, C> {
     }
 }
 
-pub static DB: OnceCell<DatabaseConnection> = OnceCell::const_new();
-
-pub async fn get_connection() -> anyhow::Result<DatabaseConnection> {
+pub async fn create_connection() -> anyhow::Result<DatabaseConnection> {
     let mut opt = ConnectOptions::new(CONFIG.database_url());
     opt.max_connections(100)
         .min_connections(5)

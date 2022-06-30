@@ -53,15 +53,15 @@ mod tests {
     use pretty_assertions::assert_eq;
     use sea_orm::{ActiveModelTrait, TransactionTrait};
 
-    use crate::infrastructure::repository::rdb::{entity, get_connection};
+    use crate::infrastructure::repository::rdb::{create_connection, entity};
 
     use super::*;
 
     #[tokio::test]
     async fn test_get_users() -> anyhow::Result<()> {
-        let db = get_connection().await?;
+        let db = create_connection().await?;
 
-        let tx = db.begin().await?;
+        let tx = db.begin().await.context("begin transaction")?;
 
         entity::users::ActiveModel {
             name: sea_orm::ActiveValue::Set("name".into()),
@@ -69,11 +69,12 @@ mod tests {
             ..Default::default()
         }
         .save(&tx)
-        .await?;
+        .await
+        .context("insert fixture")?;
 
         let repo = RdbRepository::new(&tx);
 
-        let users = repo.get_users().await?;
+        let users = repo.get_users().await.context("get_users")?;
 
         assert_matches!(&users[..], [user] => {
             assert_matches!(user.id, UserId(x) => {
@@ -82,14 +83,15 @@ mod tests {
             assert_eq!(user.name, "name");
             assert_eq!(user.age, 100);
         });
+
         Ok(())
     }
 
     #[tokio::test]
     async fn test_get_user_exists() -> anyhow::Result<()> {
-        let db = get_connection().await?;
+        let db = create_connection().await?;
 
-        let tx = db.begin().await.context("get conn")?;
+        let tx = db.begin().await.context("begin transaction")?;
 
         let mut user = entity::users::ActiveModel {
             name: sea_orm::ActiveValue::Set("name".into()),
@@ -114,6 +116,7 @@ mod tests {
             assert_eq!(user.name, "name");
             assert_eq!(user.age, 100);
         });
+
         Ok(())
     }
 }
