@@ -47,10 +47,7 @@ impl From<users::Model> for User {
         Self {
             id: UserId(x.id),
             name: x.name,
-            age: x
-                .age
-                .map(|x| x.try_into().unwrap_or_default())
-                .unwrap_or_default(),
+            age: x.age.and_then(|x| x.try_into().ok()).unwrap_or_default(),
         }
     }
 }
