@@ -47,3 +47,12 @@ args = [
     "schema.sql",
     "${POSTGRES_DB_TEST}",
 ]
+
+[tasks.entity]
+command = "sea-orm-cli"
+args = [
+    "generate",
+    "entity",
+    "-o",
+    "src/infrastructure/repository/rdb/entity",
+]
