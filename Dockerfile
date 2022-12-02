@@ -1,4 +1,4 @@
-FROM rust:1.61.0-slim-bullseye
+FROM rust:1.65.0-slim-bullseye
 
 ARG TARGETPLATFORM
 
