@@ -10,7 +10,6 @@
   - ここはあくまでオプションのパースなどのみを行う
 - `cli`
   - CLIから実行する処理の実体を記述する場所
-  - webでいうとView的な役割をするレイヤー
 - `infrastructure`
   - インフラ層
   - ドメイン層で定義されたinterfaceを実装する
@@ -18,11 +17,11 @@
   - RDB、Cache、暗号化などはこのレイヤーにある
 - `interface`
   - 受け取ったデータのHandlerを実装するようなレイヤー
-  - WebでいうとControllerのような役割
+  - WebでいうとControllerなど
 - `usecase`
   - 業務ロジックを書くレイヤー
   - なんかいろいろデータをごにょごにょする
-- `models`
+- `domain`
   - ドメイン層
   - repositoryのinterface定義はこのレイヤーでやる
     - 実装は別のレイヤー
@@ -46,7 +45,7 @@ interface
 ↓
 usecase
 ↓
-models
+domain
 ```
 
 ## Configuration
