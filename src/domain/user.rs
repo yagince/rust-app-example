@@ -1,10 +1,10 @@
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use validator::Validate;
 
-#[derive(Debug, Clone, PartialEq, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
 pub struct UserId(pub i64);
 
-#[derive(Debug, Clone, PartialEq, Deserialize, Validate)]
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize, Validate)]
 pub struct User {
     pub id: UserId,
     #[validate(length(min = 1))]
