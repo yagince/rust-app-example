@@ -9,8 +9,8 @@ use axum::{
 use sea_orm::DatabaseConnection;
 
 use crate::{
-    domain::user::{User, UserId},
-    infrastructure::repository::rdb::create_connection,
+    domain::repository::user_repository::UserRepository,
+    infrastructure::repository::rdb::{create_connection, RdbRepository},
 };
 
 #[derive(Debug, Clone, FromRef)]
@@ -21,21 +21,10 @@ pub struct AppState {
 type Router = AxumRouter<AppState>;
 
 pub async fn serve() -> anyhow::Result<()> {
-    // let db_conn = create_connection().await?;
-    // let api = Router::new()
-    //     .nest(
-    //         "/api",
-    //         Router::new().nest(
-    //             "/v1",
-    //             Router::new().route("/users", routing::get(get_users)),
-    //         ),
-    //     )
-    //     .with_state(AppState { db_conn });
     let db_conn = create_connection().await?;
 
     axum::Server::bind(&SocketAddr::from(([0, 0, 0, 0], 3000)))
         .serve(api(AppState { db_conn }).await?.into_make_service())
-        // .serve(api.into_make_service())
         .await?;
     Ok(())
 }
@@ -52,59 +41,91 @@ fn v1_routes() -> Router {
     Router::new().route("/users", routing::get(get_users))
 }
 
-async fn get_users(State(_conn): State<DatabaseConnection>) -> impl IntoResponse {
-    (
-        StatusCode::OK,
-        Json(vec![User {
-            id: UserId(1),
-            name: "test name".to_owned(),
-            age: 100,
-        }]),
-    )
+async fn get_users(State(conn): State<DatabaseConnection>) -> impl IntoResponse {
+    let repo = RdbRepository::new(&conn);
+    repo.get_users()
+        .await
+        .map(|users| (StatusCode::OK, Json(users)))
+        .map_err(internal_error)
+}
+
+fn internal_error(err: anyhow::Error) -> (StatusCode, String) {
+    (StatusCode::INTERNAL_SERVER_ERROR, err.to_string())
 }
 
 #[cfg(test)]
 mod tests {
-    use std::net::{SocketAddr, TcpListener};
-
     use super::*;
+    use anyhow::Context;
+    use assert_json_diff::assert_json_include;
     use axum::{
         body::Body,
         http::{Request, StatusCode},
     };
     use pretty_assertions::assert_eq;
+    use sea_orm::ActiveModelTrait;
     use serde_json::json;
+    use std::net::{SocketAddr, TcpListener};
 
     #[tokio::test]
     async fn test_api_v1_get_users() -> anyhow::Result<()> {
-        let state = AppState {
-            db_conn: create_connection().await?,
-        };
-        let listner = TcpListener::bind("0.0.0.0:0".parse::<SocketAddr>()?)?;
-        let addr = dbg!(listner.local_addr()?);
+        let conn = create_connection().await?;
 
-        tokio::spawn(async move {
-            axum::Server::from_tcp(listner)
-                .unwrap()
-                .serve(api(state).await.unwrap().into_make_service())
+        let state = AppState {
+            db_conn: conn.clone(),
+        };
+
+        let x = crate::infrastructure::repository::rdb::entity::users::ActiveModel {
+            name: sea_orm::ActiveValue::Set("name".into()),
+            age: sea_orm::ActiveValue::Set(Some(100)),
+            ..Default::default()
+        }
+        .save(&conn)
+        .await
+        .context("insert fixture")?;
+
+        let res: anyhow::Result<_> = async {
+            let listner = TcpListener::bind("0.0.0.0:0".parse::<SocketAddr>()?)?;
+            let addr = listner.local_addr()?;
+
+            tokio::spawn(async move {
+                axum::Server::from_tcp(listner)
+                    .unwrap()
+                    .serve(api(state).await.unwrap().into_make_service())
+                    .await
+                    .unwrap();
+            });
+            let client = hyper::Client::new();
+            client
+                .request(
+                    Request::builder()
+                        .uri(format!("http://{}/api/v1/users", addr))
+                        .body(Body::empty())
+                        .unwrap(),
+                )
                 .await
-                .unwrap();
-        });
-        let client = hyper::Client::new();
-        let res = client
-            .request(
-                Request::builder()
-                    .uri(format!("http://{}/api/v1/users", addr))
-                    .body(Body::empty())
-                    .unwrap(),
-            )
-            .await?;
+                .map_err(Into::into)
+        }
+        .await;
+
+        x.delete(&conn).await?;
+        let res = res?;
 
         assert_eq!(res.status(), StatusCode::OK);
 
         let body: serde_json::Value =
             serde_json::from_slice(&hyper::body::to_bytes(res.into_body()).await?)?;
-        assert_eq!(body, json!([{ "id": 1, "name": "test name", "age": 100}]));
+
+        assert_json_include!(
+            actual: body,
+            expected:
+                json!([
+                    {
+                        "name": "name",
+                        "age": 100,
+                    },
+                ]),
+        );
         Ok(())
     }
 }
