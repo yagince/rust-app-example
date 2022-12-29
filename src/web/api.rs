@@ -56,6 +56,7 @@ fn internal_error(err: anyhow::Error) -> (StatusCode, String) {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::infrastructure::repository::rdb::entity::users;
     use anyhow::Context;
     use assert_json_diff::assert_json_include;
     use axum::{
@@ -65,7 +66,6 @@ mod tests {
     use pretty_assertions::assert_eq;
     use sea_orm::ActiveModelTrait;
     use serde_json::json;
-    use std::net::{SocketAddr, TcpListener};
 
     #[tokio::test]
     async fn test_api_v1_get_users() -> anyhow::Result<()> {
@@ -75,7 +75,7 @@ mod tests {
             db_conn: conn.clone(),
         };
 
-        let x = crate::infrastructure::repository::rdb::entity::users::ActiveModel {
+        let x = users::ActiveModel {
             name: sea_orm::ActiveValue::Set("name".into()),
             age: sea_orm::ActiveValue::Set(Some(100)),
             ..Default::default()
@@ -85,26 +85,16 @@ mod tests {
         .context("insert fixture")?;
 
         let res: anyhow::Result<_> = async {
-            let listner = TcpListener::bind("0.0.0.0:0".parse::<SocketAddr>()?)?;
-            let addr = listner.local_addr()?;
-
-            tokio::spawn(async move {
-                axum::Server::from_tcp(listner)
-                    .unwrap()
-                    .serve(api(state).await.unwrap().into_make_service())
-                    .await
-                    .unwrap();
-            });
-            let client = hyper::Client::new();
-            client
-                .request(
+            use tower::ServiceExt;
+            let app = api(state).await?;
+            Ok(app
+                .oneshot(
                     Request::builder()
-                        .uri(format!("http://{}/api/v1/users", addr))
-                        .body(Body::empty())
-                        .unwrap(),
+                        .method(axum::http::Method::GET)
+                        .uri("/api/v1/users")
+                        .body(Body::empty())?,
                 )
-                .await
-                .map_err(Into::into)
+                .await?)
         }
         .await;
 
