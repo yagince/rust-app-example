@@ -25,7 +25,7 @@ RUN apt-get -y -q update \
   && mv psqldef /usr/local/bin \
   \
   && rustup component add rustfmt \
-  && cargo install cargo-watch cargo-make sea-orm-cli
+  && cargo install cargo-watch cargo-make sea-orm-cli cargo-outdated
 
 RUN cargo new --bin app
 WORKDIR /app
