@@ -64,6 +64,7 @@ mod tests {
     use sea_orm::ActiveModelTrait;
     use serde_json::json;
 
+    #[serial_test::serial]
     #[tokio::test]
     async fn test_api_v1_get_users() -> anyhow::Result<()> {
         let conn = create_connection().await?;
@@ -113,6 +114,30 @@ mod tests {
                     },
                 ]),
         );
+        Ok(())
+    }
+
+    #[serial_test::serial]
+    #[tokio::test]
+    async fn test_api_v1_get_user_400() -> anyhow::Result<()> {
+        let (_, state) = connection().await?;
+
+        let res: anyhow::Result<_> = async {
+            let app = api(state).await?;
+            Ok(app
+                .oneshot(
+                    Request::builder()
+                        .method(axum::http::Method::GET)
+                        .uri("/api/v1/users/id")
+                        .body(Body::empty())?,
+                )
+                .await?)
+        }
+        .await;
+
+        let res = res?;
+
+        assert_eq!(res.status(), StatusCode::BAD_REQUEST);
         Ok(())
     }
 }
