@@ -27,3 +27,24 @@ pub async fn create_connection() -> anyhow::Result<DatabaseConnection> {
 
     Ok(Database::connect(opt).await?)
 }
+
+#[cfg(test)]
+pub(crate) mod fixtures {
+    use super::entity::users;
+    use sea_orm::ActiveValue;
+
+    #[macro_export]
+    macro_rules! fixture {
+        ($conn:ident, $model:expr) => {
+            $model.save(&$conn).await
+        };
+    }
+
+    pub fn user() -> users::ActiveModel {
+        users::ActiveModel {
+            name: ActiveValue::Set("test name".into()),
+            age: ActiveValue::Set(Some(100)),
+            ..Default::default()
+        }
+    }
+}

@@ -50,7 +50,10 @@ fn internal_error(err: anyhow::Error) -> (StatusCode, String) {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::infrastructure::repository::rdb::entity::users;
+    use crate::{
+        fixture,
+        infrastructure::repository::rdb::{entity::users, fixtures},
+    };
     use anyhow::Context;
     use assert_json_diff::assert_json_include;
     use axum::{
@@ -69,14 +72,14 @@ mod tests {
             db_conn: conn.clone(),
         };
 
-        let x = users::ActiveModel {
-            name: sea_orm::ActiveValue::Set("name".into()),
-            age: sea_orm::ActiveValue::Set(Some(100)),
-            ..Default::default()
-        }
-        .save(&conn)
-        .await
-        .context("insert fixture")?;
+        let x = fixture!(
+            conn,
+            users::ActiveModel {
+                name: sea_orm::ActiveValue::Set("name".into()),
+                ..fixtures::user()
+            }
+        )
+        .context("create user")?;
 
         let res: anyhow::Result<_> = async {
             use tower::ServiceExt;
