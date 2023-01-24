@@ -1,22 +1,16 @@
 use std::net::SocketAddr;
 
 use axum::{
-    extract::{FromRef, State},
-    http::StatusCode,
-    response::IntoResponse,
-    routing, Json, Router as AxumRouter,
+    extract::State, http::StatusCode, response::IntoResponse, routing, Json, Router as AxumRouter,
 };
 use sea_orm::DatabaseConnection;
 
 use crate::{
-    domain::repository::user_repository::UserRepository,
     infrastructure::repository::rdb::{create_connection, RdbRepository},
+    interface::controller::users,
 };
 
-#[derive(Debug, Clone, FromRef)]
-pub struct AppState {
-    pub db_conn: DatabaseConnection,
-}
+use super::AppState;
 
 type Router = AxumRouter<AppState>;
 
@@ -43,7 +37,7 @@ fn v1_routes() -> Router {
 
 async fn get_users(State(conn): State<DatabaseConnection>) -> impl IntoResponse {
     let repo = RdbRepository::new(&conn);
-    repo.get_users()
+    users::get_users(&repo)
         .await
         .map(|users| (StatusCode::OK, Json(users)))
         .map_err(internal_error)
