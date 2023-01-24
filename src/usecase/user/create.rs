@@ -2,7 +2,7 @@ use validator::Validate;
 
 use crate::domain::{
     repository::user_repository::UserRepository,
-    user::{NewUser, User, UserId},
+    user::{NewUser, User},
 };
 
 pub struct CreateUser<'a, R: UserRepository> {
@@ -15,13 +15,7 @@ impl<'a, R: UserRepository> CreateUser<'a, R> {
     }
 
     pub async fn run(&self, user: NewUser) -> anyhow::Result<User> {
-        // FIXME: ここでUserにcloneしないとvalidateできないのはイマイチ
-        User {
-            id: UserId(0),
-            name: user.name.clone(),
-            age: user.age,
-        }
-        .validate()?;
+        user.validate()?;
         self.repo.create_user(user).await
     }
 }
