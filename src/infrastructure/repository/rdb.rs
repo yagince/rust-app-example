@@ -36,7 +36,7 @@ pub(crate) mod fixtures {
     #[macro_export]
     macro_rules! fixture {
         ($conn:ident, $model:expr) => {
-            $model.save(&$conn).await
+            $model.save($conn).await
         };
     }
 

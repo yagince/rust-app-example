@@ -1,11 +1,15 @@
 use std::net::SocketAddr;
 
 use axum::{
-    extract::State, http::StatusCode, response::IntoResponse, routing, Json, Router as AxumRouter,
+    extract::{Path, State},
+    http::StatusCode,
+    response::IntoResponse,
+    routing, Json, Router as AxumRouter,
 };
 use sea_orm::DatabaseConnection;
 
 use crate::{
+    domain::{repository::user_repository::UserRepository, user::UserId},
     infrastructure::repository::rdb::{create_connection, RdbRepository},
     interface::controller::users,
 };
@@ -32,7 +36,9 @@ fn v1() -> Router {
 }
 
 fn v1_routes() -> Router {
-    Router::new().route("/users", routing::get(get_users))
+    Router::new()
+        .route("/users", routing::get(get_users))
+        .route("/users/:id", routing::get(get_user))
 }
 
 async fn get_users(State(conn): State<DatabaseConnection>) -> impl IntoResponse {
@@ -40,6 +46,17 @@ async fn get_users(State(conn): State<DatabaseConnection>) -> impl IntoResponse 
     users::get_users(&repo)
         .await
         .map(|users| (StatusCode::OK, Json(users)))
+        .map_err(internal_error)
+}
+
+async fn get_user(
+    State(conn): State<DatabaseConnection>,
+    Path(user_id): Path<i64>,
+) -> impl IntoResponse {
+    let repo = RdbRepository::new(&conn);
+    repo.get_user(&UserId(user_id))
+        .await
+        .map(|x| (StatusCode::OK, Json(x)))
         .map_err(internal_error)
 }
 
@@ -52,7 +69,10 @@ mod tests {
     use super::*;
     use crate::{
         fixture,
-        infrastructure::repository::rdb::{entity::users, fixtures},
+        infrastructure::repository::rdb::{
+            entity::{self, users},
+            fixtures,
+        },
     };
     use anyhow::Context;
     use assert_json_diff::assert_json_include;
@@ -61,26 +81,43 @@ mod tests {
         http::{Request, StatusCode},
     };
     use pretty_assertions::assert_eq;
-    use sea_orm::ActiveModelTrait;
+    use sea_orm::{ActiveModelTrait, EntityTrait};
     use serde_json::json;
+    use tower::ServiceExt;
 
-    #[serial_test::serial]
-    #[tokio::test]
-    async fn test_api_v1_get_users() -> anyhow::Result<()> {
+    macro_rules! parse_json {
+        ($res:expr) => {
+            serde_json::from_slice::<serde_json::Value>(
+                &hyper::body::to_bytes($res.into_body()).await?,
+            )?
+        };
+    }
+
+    async fn connection() -> anyhow::Result<(DatabaseConnection, AppState)> {
         let conn = create_connection().await?;
 
         let state = AppState {
             db_conn: conn.clone(),
         };
+        Ok((conn, state))
+    }
 
-        let x = fixture!(
+    async fn fixture_user(conn: &DatabaseConnection) -> anyhow::Result<users::ActiveModel> {
+        Ok(fixture!(
             conn,
             users::ActiveModel {
                 name: sea_orm::ActiveValue::Set("name".into()),
                 ..fixtures::user()
             }
-        )
-        .context("create user")?;
+        )?)
+    }
+
+    #[serial_test::serial]
+    #[tokio::test]
+    async fn test_api_v1_get_users() -> anyhow::Result<()> {
+        let (conn, state) = connection().await?;
+
+        let x = fixture_user(&conn).await.context("create user")?;
 
         let res: anyhow::Result<_> = async {
             use tower::ServiceExt;
@@ -101,8 +138,7 @@ mod tests {
 
         assert_eq!(res.status(), StatusCode::OK);
 
-        let body: serde_json::Value =
-            serde_json::from_slice(&hyper::body::to_bytes(res.into_body()).await?)?;
+        let body = parse_json!(res);
 
         assert_json_include!(
             actual: body,
@@ -113,6 +149,46 @@ mod tests {
                         "age": 100,
                     },
                 ]),
+        );
+        Ok(())
+    }
+
+    #[serial_test::serial]
+    #[tokio::test]
+    async fn test_api_v1_get_user() -> anyhow::Result<()> {
+        let (conn, state) = connection().await?;
+
+        let x = fixture_user(&conn).await.context("create user")?;
+
+        let res: anyhow::Result<_> = async {
+            let app = api(state).await?;
+            Ok(app
+                .oneshot(
+                    Request::builder()
+                        .method(axum::http::Method::GET)
+                        .uri(format!("/api/v1/users/{}", x.id.clone().unwrap()))
+                        .body(Body::empty())?,
+                )
+                .await?)
+        }
+        .await;
+
+        entity::prelude::Users::delete(x.clone())
+            .exec(&conn)
+            .await?;
+
+        let res = res?;
+
+        assert_eq!(res.status(), StatusCode::OK);
+
+        let body = parse_json!(res);
+
+        assert_json_include!(
+            actual: body,
+            expected: json!({
+                "name": x.name.unwrap(),
+                "age": x.age.unwrap(),
+            }),
         );
         Ok(())
     }
