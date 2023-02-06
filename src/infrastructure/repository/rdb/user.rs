@@ -57,26 +57,24 @@ mod tests {
     use anyhow::Context;
     use assert_matches::assert_matches;
     use pretty_assertions::assert_eq;
-    use sea_orm::{ActiveModelTrait, TransactionTrait};
+    use sea_orm::{ActiveModelTrait, DatabaseTransaction, TransactionTrait};
     use validator::ValidationErrors;
 
     use crate::infrastructure::repository::rdb::{create_connection, entity};
 
     use super::*;
 
-    macro_rules! transaction {
-        () => {{
-            create_connection()
-                .await?
-                .begin()
-                .await
-                .context("begin transaction")?
-        }};
+    async fn create_transaction() -> anyhow::Result<DatabaseTransaction> {
+        Ok(create_connection()
+            .await?
+            .begin()
+            .await
+            .context("begin transaction")?)
     }
 
     #[tokio::test]
     async fn test_get_users() -> anyhow::Result<()> {
-        let tx = transaction!();
+        let tx = create_transaction().await?;
 
         entity::users::ActiveModel {
             name: sea_orm::ActiveValue::Set("name".into()),
@@ -104,7 +102,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_get_user_exists() -> anyhow::Result<()> {
-        let tx = transaction!();
+        let tx = create_transaction().await?;
 
         let mut user = entity::users::ActiveModel {
             name: sea_orm::ActiveValue::Set("name".into()),
@@ -133,7 +131,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_create_user() -> anyhow::Result<()> {
-        let tx = transaction!();
+        let tx = create_transaction().await?;
 
         let repo = RdbRepository::new(&tx);
 
@@ -156,7 +154,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_create_user_if_validation_error() -> anyhow::Result<()> {
-        let tx = transaction!();
+        let tx = create_transaction().await?;
 
         let repo = RdbRepository::new(&tx);
 
