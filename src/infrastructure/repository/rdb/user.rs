@@ -15,7 +15,7 @@ use super::{
 impl<'a, C: ConnectionTrait> UserRepository for RdbRepository<'a, C> {
     async fn get_users(&self) -> anyhow::Result<Vec<User>> {
         Ok(entity::prelude::Users::find()
-            .all(__self.conn)
+            .all(self.conn)
             .await?
             .into_iter()
             .map(Into::into)
@@ -24,7 +24,7 @@ impl<'a, C: ConnectionTrait> UserRepository for RdbRepository<'a, C> {
 
     async fn get_user(&self, id: &UserId) -> anyhow::Result<Option<User>> {
         Ok(entity::prelude::Users::find_by_id(id.0)
-            .one(__self.conn)
+            .one(self.conn)
             .await?
             .map(Into::into))
     }
